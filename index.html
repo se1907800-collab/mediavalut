@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Media Vault Pro - Cloud Edition</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Login Section -->
+  <div id="login-section" class="section active">
+    <div class="login-container">
+      <div class="logo">
+        <div class="logo-icon">☁️📂</div>
+        <h1>Media Vault Cloud</h1>
+      </div>
+      <div class="login-form">
+        <h2>Enter Access Code</h2>
+        <input type="password" id="access-code" placeholder="Enter secret code" />
+        <button id="login-btn" class="btn-primary">Enter Vault</button>
+        <p id="error-msg" class="error-message"></p>
+        <div class="cloud-status" id="cloud-status">
+          <span class="loading"></span>
+          Checking cloud connection...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gallery Section -->
+  <div id="gallery-section" class="section">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-content">
+        <h1 class="app-title">
+          <span class="app-icon">☁️📂</span>
+          Media Vault Cloud
+        </h1>
+        <div class="header-actions">
+          <button class="btn-icon" id="refresh-btn" title="Refresh from Cloud">
+            <span>🔄</span>
+          </button>
+          <button class="btn-icon" id="settings-btn" title="Settings">
+            <span>⚙️</span>
+          </button>
+          <button class="btn-icon" id="logout-btn" title="Logout">
+            <span>🚪</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb" id="breadcrumb">
+      <div class="breadcrumb-item active" data-folder="root">
+        <span>🏠</span>
+        Home
+      </div>
+    </nav>
+
+    <!-- Current Folder Content -->
+    <main class="main-content">
+      <div id="current-folder-content" class="folder-content">
+        <!-- Dynamic content will be loaded here -->
+      </div>
+    </main>
+
+    <!-- Organization Toolbar -->
+    <div class="org-toolbar" id="org-toolbar">
+      <button class="btn-toolbar" id="move-to-btn">
+        <span>📦</span>
+        Move
+      </button>
+      <button class="btn-toolbar" id="rename-btn">
+        <span>✏️</span>
+        Rename
+      </button>
+      <button class="btn-toolbar btn-danger" id="delete-btn">
+        <span>🗑️</span>
+        Delete
+      </button>
+      <button class="btn-toolbar" id="cancel-org-btn">
+        <span>❌</span>
+        Cancel
+      </button>
+    </div>
+  </div>
+
+  <!-- Video Player Modal -->
+  <div id="video-player-modal" class="modal">
+    <div class="modal-content video-player-content">
+      <div class="video-player-header">
+        <h3 id="video-player-title">Video Player</h3>
+        <button class="btn-close" id="close-video-player">×</button>
+      </div>
+      <div class="video-container">
+        <iframe id="video-player" frameborder="0" allowfullscreen 
+                allow="autoplay; encrypted-media"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Media Modal -->
+  <div id="add-media-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add Media</h3>
+        <button class="btn-close" id="cancel-add-media">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="media-link" placeholder="Paste Google Drive shared link" />
+        <select id="media-type">
+          <option value="image">Image</option>
+          <option value="video">Video</option>
+        </select>
+        <input type="text" id="media-title" placeholder="Media title (optional)" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="cancel-add-media-btn">Cancel</button>
+        <button class="btn-primary" id="confirm-add-media">Add Media</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Folder Modal -->
+  <div id="create-folder-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Create Folder</h3>
+        <button class="btn-close" id="cancel-create-folder">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="folder-name" placeholder="Folder name" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="cancel-create-folder-btn">Cancel</button>
+        <button class="btn-primary" id="confirm-create-folder">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Move To Modal -->
+  <div id="move-to-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Move Items</h3>
+        <button class="btn-close" id="cancel-move">×</button>
+      </div>
+      <div class="modal-body">
+        <select id="target-folder">
+          <option value="">Select target folder</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="cancel-move-btn">Cancel</button>
+        <button class="btn-primary" id="confirm-move">Move</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rename Modal -->
+  <div id="rename-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Rename</h3>
+        <button class="btn-close" id="cancel-rename">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="rename-name" placeholder="New name" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="cancel-rename-btn">Cancel</button>
+        <button class="btn-primary" id="confirm-rename">Rename</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Cloud Settings</h3>
+        <button class="btn-close" id="cancel-settings">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="setting-group">
+          <label>GitHub Username:</label>
+          <input type="text" id="github-username" placeholder="Your GitHub username" />
+        </div>
+        <div class="setting-group">
+          <label>Repository Name:</label>
+          <input type="text" id="github-repo" placeholder="Your repository name" />
+        </div>
+        <div class="setting-group">
+          <label>Branch:</label>
+          <input type="text" id="github-branch" value="main" />
+        </div>
+        <div class="setting-info">
+          <p><strong>How to set up:</strong></p>
+          <ol>
+            <li>Create a GitHub repository</li>
+            <li>Add CSV files in a folder named "csv"</li>
+            <li>Update these settings with your repo details</li>
+          </ol>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="cancel-settings-btn">Cancel</button>
+        <button class="btn-primary" id="confirm-settings">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

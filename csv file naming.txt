@@ -1,0 +1,19 @@
+
+## How to Use:
+
+1. **Upload to GitHub**: Create a repository and upload all 4 files
+2. **Add CSV Files**: Create a `csv` folder and add your CSV files
+3. **Configure Settings**: Open the app and enter your GitHub details in settings
+4. **Access**: Use code `1` to login
+
+## Key Features:
+
+- ✅ **Cloud Storage**: Uses GitHub as backend
+- ✅ **CSV Auto-Detection**: Automatically creates folders from CSV files
+- ✅ **Multi-Device Sync**: Changes reflect across all devices
+- ✅ **No Local Storage**: Pure cloud-based system
+- ✅ **Mobile Responsive**: Works on all devices
+- ✅ **Video Player**: Built-in Google Drive video player
+- ✅ **Drag & Drop**: Easy media organization
+
+The app will automatically scan for CSV files in your GitHub repository and create folders for each one, populating them with the media from your CSV files.
