@@ -30,7 +30,6 @@ body {
   color: var(--light);
   line-height: 1.6;
   min-height: 100vh;
-  overflow-x: hidden; /* Prevent horizontal scroll on body */
 }
 
 /* Section Management */
@@ -88,18 +87,6 @@ body {
   margin-bottom: 20px;
   color: var(--light);
   font-weight: 600;
-}
-
-.cloud-status {
-  margin-top: 15px;
-  padding: 10px;
-  background: rgba(15, 23, 42, 0.5);
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
 }
 
 /* Input Styles */
@@ -329,7 +316,7 @@ input:focus, select:focus {
 /* Grid Layouts - FIXED FOR 5 ITEMS PER ROW ON DESKTOP */
 .folders-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr); /* Fixed 5 columns for desktop */
+  grid-template-columns: repeat(5, 1fr);
   gap: 16px;
   margin-bottom: 32px;
   width: 100%;
@@ -337,7 +324,7 @@ input:focus, select:focus {
 
 .media-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr); /* Fixed 5 columns for desktop */
+  grid-template-columns: repeat(5, 1fr);
   gap: 16px;
   width: 100%;
 }
@@ -352,7 +339,7 @@ input:focus, select:focus {
   cursor: pointer;
   transition: all 0.3s ease;
   user-select: none;
-  min-width: 0; /* Prevent overflow */
+  min-width: 0;
 }
 
 .folder-item:hover {
@@ -424,7 +411,7 @@ input:focus, select:focus {
   transition: all 0.3s ease;
   cursor: pointer;
   user-select: none;
-  min-width: 0; /* Prevent overflow */
+  min-width: 0;
 }
 
 .media-item:hover {
@@ -603,7 +590,7 @@ input:focus, select:focus {
   border-top: 1px solid var(--border);
 }
 
-/* VIDEO PLAYER STYLES - FIXED FOR MOBILE */
+/* VIDEO PLAYER STYLES */
 .video-player-header {
   display: flex;
   justify-content: space-between;
@@ -629,7 +616,7 @@ input:focus, select:focus {
   position: relative;
   width: 100%;
   height: 0;
-  padding-bottom: 56.25%; /* 16:9 aspect ratio */
+  padding-bottom: 56.25%;
   background: #000;
   flex: 1;
   min-height: 0;
@@ -727,18 +714,7 @@ input:focus, select:focus {
   }
 }
 
-/* Make items draggable */
-.folder-item[draggable="true"],
-.media-item[draggable="true"] {
-  cursor: grab;
-}
-
-.folder-item[draggable="true"]:active,
-.media-item[draggable="true"]:active {
-  cursor: grabbing;
-}
-
-/* MOBILE RESPONSIVE STYLES - FIXED FOR 2 COLUMNS WITH HORIZONTAL SCROLL */
+/* MOBILE RESPONSIVE STYLES */
 @media (max-width: 768px) {
   .modal {
     padding: 10px;
@@ -772,30 +748,25 @@ input:focus, select:focus {
   }
   
   .video-container {
-    padding-bottom: 56.25%; /* Maintain 16:9 ratio */
+    padding-bottom: 56.25%;
     flex: 1;
-    min-height: 200px; /* Minimum height for very small screens */
+    min-height: 200px;
   }
   
-  /* FIXED MOBILE GRID - 2 COLUMNS WITH HORIZONTAL SCROLL */
+  /* MOBILE GRID - 2 COLUMNS */
   .folders-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
-    overflow-x: auto;
     padding-bottom: 10px;
     margin-bottom: 20px;
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
   }
   
   .media-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
-    overflow-x: auto;
     padding-bottom: 10px;
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
   }
   
-  /* Ensure items don't shrink on mobile */
   .folder-item, .media-item {
     min-width: 140px;
   }
@@ -846,31 +817,16 @@ input:focus, select:focus {
     width: 100%;
     height: 100%;
   }
-  
-  /* Fix for mobile browser address bar */
-  @media (max-height: 600px) {
-    .video-container {
-      padding-bottom: 50%; /* Slightly adjust ratio for very short screens */
-    }
+}
+
+/* Tablet responsive */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .folders-grid {
+    grid-template-columns: repeat(4, 1fr);
   }
   
-  /* Landscape mode on mobile */
-  @media (max-width: 768px) and (orientation: landscape) {
-    .video-player-content {
-      max-height: 100vh;
-    }
-    
-    .video-container {
-      padding-bottom: 75%; /* Adjust ratio for landscape */
-    }
-    
-    .video-player-header {
-      padding: 8px 15px;
-    }
-    
-    .video-player-header h3 {
-      font-size: 14px;
-    }
+  .media-grid {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -890,21 +846,6 @@ input:focus, select:focus {
   to { transform: rotate(360deg); }
 }
 
-/* Touch device improvements */
-@media (hover: none) and (pointer: coarse) {
-  .folder-item:hover,
-  .media-item:hover {
-    transform: none;
-  }
-  
-  .btn-primary:hover,
-  .btn-secondary:hover,
-  .btn-toolbar:hover {
-    transform: none;
-  }
-}
-
-/* Add this to your existing CSS */
 .empty-state-hint {
     font-size: 12px;
     color: var(--gray);
@@ -923,26 +864,4 @@ input:focus, select:focus {
   font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
-}
-
-/* Tablet responsive */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .folders-grid {
-    grid-template-columns: repeat(4, 1fr); /* 4 columns for tablet */
-  }
-  
-  .media-grid {
-    grid-template-columns: repeat(4, 1fr); /* 4 columns for tablet */
-  }
-}
-
-/* Large desktop */
-@media (min-width: 1200px) {
-  .folders-grid {
-    grid-template-columns: repeat(5, 1fr); /* 5 columns for large desktop */
-  }
-  
-  .media-grid {
-    grid-template-columns: repeat(5, 1fr); /* 5 columns for large desktop */
-  }
 }
