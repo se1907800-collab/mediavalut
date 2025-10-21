@@ -1,5 +1,5 @@
-// Media Vault Pro - Simplified Cloud Edition
-class MediaVaultCloud {
+// Media Vault Pro - Simple Working Version
+class MediaVault {
     constructor() {
         this.currentFolder = 'root';
         this.selectedItems = [];
@@ -9,13 +9,7 @@ class MediaVaultCloud {
         this.dragging = false;
         this.currentVideo = null;
         this.longPressTimer = null;
-        
-        // Auto-detect repository information
-        this.github = this.detectGitHubRepo();
-        this.csvFolderPrefix = 'csv-';
-        this.manifestFile = 'mediavault-data.json';
-        this.syncInterval = null;
-        
+
         // Only initialize if we're logged in
         const isLoggedIn = localStorage.getItem('mv_isLoggedIn') === 'true';
         if (isLoggedIn && document.getElementById('gallery-section').style.display !== 'none') {
@@ -23,358 +17,59 @@ class MediaVaultCloud {
         }
     }
 
-    // AUTO-DETECT GITHUB REPOSITORY
-    detectGitHubRepo() {
-        // Get current page URL to extract repo information
-        const currentUrl = window.location.href;
-        let username = 'your-username';
-        let repo = 'your-repo-name';
-        
-        try {
-            // Try to extract from GitHub Pages URL
-            if (currentUrl.includes('github.io')) {
-                const urlParts = currentUrl.split('/');
-                username = urlParts[2].split('.')[0]; // username.github.io
-                if (urlParts.length > 3 && urlParts[3]) {
-                    repo = urlParts[3]; // repository name
-                } else {
-                    repo = username; // user site (username.github.io)
-                }
-            }
-            // For direct file access, try to get from script URL
-            else {
-                const scripts = document.getElementsByTagName('script');
-                for (let script of scripts) {
-                    if (script.src && script.src.includes('github')) {
-                        const match = script.src.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-                        if (match) {
-                            username = match[1];
-                            repo = match[2];
-                            break;
-                        }
-                    }
-                }
-            }
-        } catch (error) {
-            console.log('Using default repository settings');
-        }
-        
-        console.log('Detected GitHub repo:', { username, repo });
-        
-        return {
-            username: username,
-            repo: repo,
-            branch: 'main',
-            baseUrl: 'https://raw.githubusercontent.com'
-        };
-    }
-
-    async initializeApp() {
-        await this.loadDataFromGitHub();
+    initializeApp() {
+        this.loadData();
         this.setupEventListeners();
         this.setupSelectionSystem();
         this.setupDragAndDrop();
-        this.setupAutoSync();
         this.buildFolderUI('root');
     }
 
-    // AUTO-SYNC BETWEEN DEVICES
-    setupAutoSync() {
-        // Sync every 30 seconds
-        this.syncInterval = setInterval(() => {
-            this.syncWithCloud();
-        }, 30000);
+    // Login System
+    checkLoginStatus() {
+        const isLoggedIn = localStorage.getItem('mv_isLoggedIn');
         
-        // Also sync when window becomes visible
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                this.syncWithCloud();
+        if (isLoggedIn === 'true') {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('gallery-section').style.display = 'block';
+            if (!window.mediaVaultInitialized) {
+                window.mediaVaultInitialized = true;
+                this.initializeApp();
             }
-        });
-    }
-
-    async syncWithCloud() {
-        try {
-            const cloudData = await this.fetchGitHubFile(this.manifestFile);
-            if (cloudData) {
-                const data = JSON.parse(cloudData);
-                const localData = this.getLocalData();
-                
-                // Compare timestamps to see if cloud has newer data
-                const cloudTime = new Date(data.lastUpdated || 0);
-                const localTime = new Date(localData.lastUpdated || 0);
-                
-                if (cloudTime > localTime) {
-                    // Cloud has newer data, update local
-                    this.folderStructure = data.folderStructure;
-                    this.mediaData = data.mediaData;
-                    this.buildFolderUI(this.currentFolder);
-                    console.log('Synced with cloud - data updated');
-                }
-            }
-        } catch (error) {
-            console.log('Sync error:', error);
+        } else {
+            document.getElementById('login-section').style.display = 'flex';
+            document.getElementById('gallery-section').style.display = 'none';
         }
     }
 
-    getLocalData() {
-        return {
-            folderStructure: this.folderStructure,
-            mediaData: this.mediaData,
-            lastUpdated: localStorage.getItem('mv_lastUpdated') || new Date().toISOString()
-        };
-    }
-
-    // GITHUB CLOUD STORAGE - SIMPLIFIED
-    async loadDataFromGitHub() {
-        try {
-            // First, scan for all CSV files in the csv folder
-            await this.scanForCSVFiles();
+    checkAccess() {
+        const input = document.getElementById('access-code').value;
+        const errorMsg = document.getElementById('error-msg');
+        
+        if (input === '1') {
+            localStorage.setItem('mv_isLoggedIn', 'true');
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('gallery-section').style.display = 'block';
+            errorMsg.textContent = '';
             
-            // Then try to load existing data
-            const manifestData = await this.fetchGitHubFile(this.manifestFile);
-            
-            if (manifestData) {
-                const data = JSON.parse(manifestData);
-                // Merge CSV folders with existing data
-                this.mergeData(data);
+            if (!window.mediaVaultInitialized) {
+                window.mediaVaultInitialized = true;
+                this.initializeApp();
             }
-            
-            this.showMessage('Data loaded successfully!');
-        } catch (error) {
-            console.error('Error loading data:', error);
-            // Fallback to empty structure
-            this.folderStructure = this.getDefaultFolderStructure();
-            this.mediaData = this.getDefaultMediaData();
+        } else {
+            errorMsg.textContent = 'Incorrect access code! Try "1"';
+            document.getElementById('access-code').focus();
         }
     }
 
-    async scanForCSVFiles() {
-        try {
-            // Try common CSV filenames
-            const commonNames = [
-                'movies', 'videos', 'photos', 'images', 'media', 
-                'documents', 'personal', 'family', 'work', 'travel'
-            ];
-            
-            let processedCount = 0;
-            for (const name of commonNames) {
-                const filename = `csv/${name}.csv`;
-                const success = await this.processCSVFile(filename);
-                if (success) processedCount++;
-            }
-            
-            // Also try to find any CSV file in the csv folder
-            if (processedCount === 0) {
-                console.log('Trying to find any CSV files...');
-                // In a real implementation, you'd list directory contents
-                // For now, we'll try a wildcard approach
-                for (let i = 0; i < 10; i++) {
-                    const filename = `csv/file${i}.csv`;
-                    const success = await this.processCSVFile(filename);
-                    if (success) processedCount++;
-                }
-            }
-            
-            console.log(`Processed ${processedCount} CSV files`);
-            
-        } catch (error) {
-            console.error('Error scanning CSV files:', error);
-        }
-    }
-
-    async processCSVFile(csvFilePath) {
-        try {
-            const csvContent = await this.fetchGitHubFile(csvFilePath);
-            if (!csvContent) return false;
-
-            const filename = csvFilePath.split('/').pop();
-            const folderName = filename.replace('.csv', '');
-            const folderId = this.csvFolderPrefix + this.sanitizeId(folderName);
-            
-            // Create folder for this CSV
-            this.folderStructure[folderId] = {
-                name: folderName, // Use exact CSV filename as folder name
-                parent: 'root',
-                children: [],
-                source: 'csv',
-                csvFile: csvFilePath
-            };
-            
-            if (!this.folderStructure['root'].children) {
-                this.folderStructure['root'].children = [];
-            }
-            
-            // Avoid duplicates
-            if (!this.folderStructure['root'].children.includes(folderId)) {
-                this.folderStructure['root'].children.push(folderId);
-            }
-            
-            // Parse CSV and add media
-            this.mediaData[folderId] = this.parseCSVContent(csvContent);
-            return true;
-            
-        } catch (error) {
-            return false;
-        }
-    }
-
-    parseCSVContent(csvText) {
-        const mediaItems = [];
-        const lines = csvText.split('\n').filter(line => line.trim());
-        
-        // Skip header if it exists
-        const startIndex = lines[0].toLowerCase().includes('id,') ? 1 : 0;
-        
-        for (let i = startIndex; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
-            
-            const columns = line.split(',').map(col => col.trim());
-            if (columns.length >= 2) {
-                const [id, type, title, folder] = columns;
-                if (id && type) {
-                    mediaItems.push({
-                        id: id,
-                        type: type.toLowerCase(),
-                        title: (title || `Media ${i + 1}`),
-                        folder: folder || '',
-                        added: new Date().toISOString()
-                    });
-                }
-            }
-        }
-        
-        return mediaItems;
-    }
-
-    async fetchGitHubFile(filePath) {
-        if (!this.github.username || !this.github.repo) {
-            throw new Error('GitHub repository not detected');
-        }
-
-        try {
-            const url = `${this.github.baseUrl}/${this.github.username}/${this.github.repo}/${this.github.branch}/${filePath}`;
-            const response = await fetch(url);
-            
-            if (response.ok) {
-                return await response.text();
-            }
-            return null;
-        } catch (error) {
-            return null;
-        }
-    }
-
-    mergeData(cloudData) {
-        // Preserve CSV folders and merge with cloud data
-        const csvFolders = {};
-        Object.keys(this.folderStructure).forEach(key => {
-            if (this.folderStructure[key].source === 'csv') {
-                csvFolders[key] = this.folderStructure[key];
-            }
-        });
-        
-        this.folderStructure = { ...cloudData.folderStructure, ...csvFolders };
-        this.mediaData = { ...cloudData.mediaData, ...this.mediaData };
-        
-        // Ensure root has all CSV folders
-        if (!this.folderStructure['root'].children) {
-            this.folderStructure['root'].children = [];
-        }
-        
-        Object.keys(csvFolders).forEach(folderId => {
-            if (!this.folderStructure['root'].children.includes(folderId)) {
-                this.folderStructure['root'].children.push(folderId);
-            }
-        });
-    }
-
-    async saveDataToCloud() {
-        const data = {
-            folderStructure: this.folderStructure,
-            mediaData: this.mediaData,
-            lastUpdated: new Date().toISOString(),
-            version: '1.0'
-        };
-        
-        // Store in localStorage as backup
-        localStorage.setItem('mv_cloud_data', JSON.stringify(data));
-        localStorage.setItem('mv_lastUpdated', data.lastUpdated);
-        
-        this.showMessage('Changes saved!');
-        return true;
-    }
-
-    async refreshFromCloud() {
-        this.showMessage('Refreshing data...');
-        await this.loadDataFromGitHub();
-        this.buildFolderUI(this.currentFolder);
-        this.showMessage('Data refreshed!');
-    }
-
-    // DATA MANAGEMENT
-    getDefaultFolderStructure() {
-        return {
-            'root': { 
-                name: 'Home', 
-                children: [], 
-                parent: null 
-            }
-        };
-    }
-
-    getDefaultMediaData() {
-        return {};
-    }
-
-    // UTILITY METHODS
-    sanitizeId(name) {
-        return name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    }
-
-    extractFileId(url) {
-        const patterns = [
-            /\/file\/d\/([^\/]+)/,
-            /id=([^&]+)/,
-            /\/d\/([^\/]+)/
-        ];
-        
-        // If it's already just an ID
-        if (url.length === 33 && !url.includes('/') && !url.includes('=')) {
-            return url;
-        }
-        
-        for (const pattern of patterns) {
-            const match = url.match(pattern);
-            if (match && match[1]) {
-                return match[1];
-            }
-        }
-        
-        // Try Google Drive share URL
-        if (url.includes('drive.google.com')) {
-            const tempUrl = new URL(url);
-            const id = tempUrl.searchParams.get('id');
-            if (id) return id;
-        }
-        
-        return null;
-    }
-
-    showMessage(text, type = 'success') {
-        const message = document.createElement('div');
-        message.className = `status-message ${type === 'error' ? 'error-message' : ''}`;
-        message.style.background = type === 'error' ? 'var(--danger)' : 
-                                 type === 'warning' ? 'var(--warning)' : 'var(--success)';
-        message.textContent = text;
-        document.body.appendChild(message);
-        
-        setTimeout(() => {
-            if (message.parentNode) {
-                message.parentNode.removeChild(message);
-            }
-        }, 3000);
+    logout() {
+        localStorage.removeItem('mv_isLoggedIn');
+        window.mediaVaultInitialized = false;
+        document.getElementById('login-section').style.display = 'flex';
+        document.getElementById('gallery-section').style.display = 'none';
+        document.getElementById('access-code').value = '';
+        this.selectedItems = [];
+        this.selectionMode = false;
     }
 
     // SELECTION SYSTEM
@@ -495,13 +190,6 @@ class MediaVaultCloud {
             if (item && this.selectedItems.length > 0) {
                 this.dragging = true;
                 e.dataTransfer.effectAllowed = 'move';
-                
-                const dragImage = document.createElement('div');
-                dragImage.textContent = `Moving ${this.selectedItems.length} items`;
-                dragImage.style.cssText = 'background: var(--primary); color: white; padding: 8px 12px; border-radius: 4px; position: fixed; top: -100px;';
-                document.body.appendChild(dragImage);
-                e.dataTransfer.setDragImage(dragImage, 0, 0);
-                setTimeout(() => document.body.removeChild(dragImage), 0);
             }
         });
 
@@ -554,7 +242,7 @@ class MediaVaultCloud {
         this.dragging = false;
     }
 
-    async moveSelectedItemsToFolder(targetFolderId) {
+    moveSelectedItemsToFolder(targetFolderId) {
         if (!targetFolderId || this.selectedItems.length === 0) return;
 
         this.selectedItems.forEach(item => {
@@ -587,10 +275,23 @@ class MediaVaultCloud {
             }
         });
 
-        await this.saveDataToCloud();
+        this.saveData();
         this.buildFolderUI(this.currentFolder);
         this.cancelSelection();
         this.showMessage(`Moved ${this.selectedItems.length} items successfully!`);
+    }
+
+    showMessage(text) {
+        const message = document.createElement('div');
+        message.className = 'status-message';
+        message.textContent = text;
+        document.body.appendChild(message);
+        
+        setTimeout(() => {
+            if (message.parentNode) {
+                message.parentNode.removeChild(message);
+            }
+        }, 3000);
     }
 
     // VIDEO PLAYER
@@ -614,7 +315,31 @@ class MediaVaultCloud {
         this.currentVideo = null;
     }
 
-    // UI BUILDING
+    // Data Management
+    loadData() {
+        const savedFolderStructure = localStorage.getItem('mv_folderStructure');
+        const savedMediaData = localStorage.getItem('mv_mediaData');
+        
+        this.folderStructure = savedFolderStructure ? JSON.parse(savedFolderStructure) : this.getDefaultFolderStructure();
+        this.mediaData = savedMediaData ? JSON.parse(savedMediaData) : this.getDefaultMediaData();
+    }
+
+    getDefaultFolderStructure() {
+        return {
+            'root': { name: 'Home', children: [], parent: null }
+        };
+    }
+
+    getDefaultMediaData() {
+        return {};
+    }
+
+    saveData() {
+        localStorage.setItem('mv_folderStructure', JSON.stringify(this.folderStructure));
+        localStorage.setItem('mv_mediaData', JSON.stringify(this.mediaData));
+    }
+
+    // UI Building
     buildFolderUI(folderId) {
         if (!this.folderStructure[folderId]) {
             folderId = 'root';
@@ -671,13 +396,10 @@ class MediaVaultCloud {
             const childFolder = this.folderStructure[childId];
             if (!childFolder) return '';
             
-            const isCsvFolder = childFolder.source === 'csv';
-            
             return `
                 <div class="folder-item" data-folder-id="${childId}" data-type="folder" draggable="true">
                     <div class="folder-icon">📁</div>
                     <div class="folder-name">${childFolder.name}</div>
-                    ${isCsvFolder ? '<div class="csv-folder-badge">CSV</div>' : ''}
                     <div class="folder-options">
                         <button class="folder-option-btn" data-action="rename">✏️</button>
                         <button class="folder-option-btn" data-action="delete">🗑️</button>
@@ -706,7 +428,7 @@ class MediaVaultCloud {
                      alt="${item.title}" 
                      class="media-thumb ${item.type === 'video' ? 'video-thumb' : ''}"
                      loading="lazy"
-                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMwMzNmIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzk5YTFjNCIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TWVkaWEgTm90IEZvdW5kPC90ZXh0Pjwvc3ZnPg=='">
+                     onerror="this.style.display='none'">
                 <div class="media-title">${item.title || 'Untitled'}</div>
                 ${item.type === 'video' ? '<div class="video-badge">VIDEO</div>' : ''}
             </div>
@@ -741,13 +463,16 @@ class MediaVaultCloud {
         return path;
     }
 
-    // EVENT LISTENERS
+    // Event Listeners
     setupEventListeners() {
         // Logout
         document.getElementById('logout-btn').addEventListener('click', () => this.logout());
-        
+
         // Refresh
-        document.getElementById('refresh-btn').addEventListener('click', () => this.refreshFromCloud());
+        document.getElementById('refresh-btn').addEventListener('click', () => {
+            this.buildFolderUI(this.currentFolder);
+            this.showMessage('Refreshed!');
+        });
 
         // Breadcrumb navigation
         document.getElementById('breadcrumb').addEventListener('click', (e) => {
@@ -884,12 +609,12 @@ class MediaVaultCloud {
         document.getElementById('cancel-org-btn').addEventListener('click', () => this.cancelSelection());
     }
 
-    // NAVIGATION
+    // Navigation
     navigateToFolder(folderId) {
         this.buildFolderUI(folderId);
     }
 
-    // MODAL MANAGEMENT
+    // Modal Management
     showCreateFolderModal() {
         document.getElementById('create-folder-modal').classList.add('active');
         document.getElementById('folder-name').focus();
@@ -964,8 +689,8 @@ class MediaVaultCloud {
         });
     }
 
-    // ACTIONS
-    async createFolder() {
+    // Actions
+    createFolder() {
         const name = document.getElementById('folder-name').value.trim();
         if (!name) {
             alert('Please enter a folder name');
@@ -985,12 +710,12 @@ class MediaVaultCloud {
         this.folderStructure[this.currentFolder].children.push(folderId);
         
         this.mediaData[folderId] = [];
-        await this.saveDataToCloud();
+        this.saveData();
         this.buildFolderUI(this.currentFolder);
         this.hideCreateFolderModal();
     }
 
-    async addMedia() {
+    addMedia() {
         const link = document.getElementById('media-link').value.trim();
         const type = document.getElementById('media-type').value;
         const title = document.getElementById('media-title').value.trim();
@@ -1009,8 +734,7 @@ class MediaVaultCloud {
         const mediaItem = {
             id: fileId,
             type: type,
-            title: title || `Media ${new Date().toLocaleDateString()}`,
-            added: new Date().toISOString()
+            title: title || `Media ${new Date().toLocaleDateString()}`
         };
         
         if (!this.mediaData[this.currentFolder]) {
@@ -1018,23 +742,40 @@ class MediaVaultCloud {
         }
         
         this.mediaData[this.currentFolder].push(mediaItem);
-        await this.saveDataToCloud();
+        this.saveData();
         this.buildFolderUI(this.currentFolder);
         this.hideAddMediaModal();
     }
 
-    async moveSelectedItems() {
+    extractFileId(url) {
+        const patterns = [
+            /\/file\/d\/([^\/]+)/,
+            /id=([^&]+)/,
+            /\/d\/([^\/]+)/
+        ];
+        
+        for (const pattern of patterns) {
+            const match = url.match(pattern);
+            if (match && match[1]) {
+                return match[1];
+            }
+        }
+        
+        return null;
+    }
+
+    moveSelectedItems() {
         const targetFolderId = document.getElementById('target-folder').value;
         if (!targetFolderId) {
             alert('Please select a target folder');
             return;
         }
         
-        await this.moveSelectedItemsToFolder(targetFolderId);
+        this.moveSelectedItemsToFolder(targetFolderId);
         this.hideMoveToModal();
     }
 
-    async renameSelectedItem() {
+    renameSelectedItem() {
         const newName = document.getElementById('rename-name').value.trim();
         if (!newName) {
             alert('Please enter a new name');
@@ -1049,13 +790,13 @@ class MediaVaultCloud {
             if (media) media.title = newName;
         }
         
-        await this.saveDataToCloud();
+        this.saveData();
         this.buildFolderUI(this.currentFolder);
         this.hideRenameModal();
         this.cancelSelection();
     }
 
-    async deleteSelectedItems() {
+    deleteSelectedItems() {
         if (this.selectedItems.length === 0) return;
         
         if (!confirm(`Are you sure you want to delete ${this.selectedItems.length} item(s)?`)) {
@@ -1070,7 +811,7 @@ class MediaVaultCloud {
             }
         });
         
-        await this.saveDataToCloud();
+        this.saveData();
         this.buildFolderUI(this.currentFolder);
         this.cancelSelection();
     }
@@ -1093,61 +834,9 @@ class MediaVaultCloud {
         delete this.folderStructure[folderId];
         delete this.mediaData[folderId];
     }
-
-    // LOGIN SYSTEM
-    checkLoginStatus() {
-        const isLoggedIn = localStorage.getItem('mv_isLoggedIn') === 'true';
-        
-        if (isLoggedIn) {
-            document.getElementById('login-section').style.display = 'none';
-            document.getElementById('gallery-section').style.display = 'block';
-            if (!window.mediaVaultInitialized) {
-                window.mediaVaultInitialized = true;
-                this.initializeApp();
-            }
-        } else {
-            document.getElementById('login-section').style.display = 'flex';
-            document.getElementById('gallery-section').style.display = 'none';
-        }
-    }
-
-    checkAccess() {
-        const input = document.getElementById('access-code').value;
-        const errorMsg = document.getElementById('error-msg');
-        
-        if (input === '1') {
-            localStorage.setItem('mv_isLoggedIn', 'true');
-            document.getElementById('login-section').style.display = 'none';
-            document.getElementById('gallery-section').style.display = 'block';
-            errorMsg.textContent = '';
-            
-            if (!window.mediaVaultInitialized) {
-                window.mediaVaultInitialized = true;
-                this.initializeApp();
-            }
-        } else {
-            errorMsg.textContent = 'Incorrect access code! Try "1"';
-            document.getElementById('access-code').focus();
-        }
-    }
-
-    logout() {
-        localStorage.removeItem('mv_isLoggedIn');
-        window.mediaVaultInitialized = false;
-        document.getElementById('login-section').style.display = 'flex';
-        document.getElementById('gallery-section').style.display = 'none';
-        document.getElementById('access-code').value = '';
-        this.selectedItems = [];
-        this.selectionMode = false;
-        
-        // Clear sync interval
-        if (this.syncInterval) {
-            clearInterval(this.syncInterval);
-        }
-    }
 }
 
-// AUTO-LOGIN AND INITIALIZATION
+// AUTO-LOGIN
 document.addEventListener('DOMContentLoaded', function() {
     // Check login status immediately
     const isLoggedIn = localStorage.getItem('mv_isLoggedIn') === 'true';
@@ -1155,12 +844,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (isLoggedIn) {
         document.getElementById('login-section').style.display = 'none';
         document.getElementById('gallery-section').style.display = 'block';
-        window.mediaVault = new MediaVaultCloud();
+        window.mediaVault = new MediaVault();
         window.mediaVaultInitialized = true;
     } else {
         document.getElementById('login-section').style.display = 'flex';
         document.getElementById('gallery-section').style.display = 'none';
         
+        // Clear any existing data that might cause auto-login
         localStorage.removeItem('mv_isLoggedIn');
         window.mediaVaultInitialized = false;
         
@@ -1175,7 +865,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('gallery-section').style.display = 'block';
                 errorMsg.textContent = '';
                 
-                window.mediaVault = new MediaVaultCloud();
+                window.mediaVault = new MediaVault();
                 window.mediaVaultInitialized = true;
             } else {
                 errorMsg.textContent = 'Incorrect code! Try "1"';
