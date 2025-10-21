@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Media Vault Pro - Cloud Edition</title>
+  <title>Media Vault Pro</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,18 +11,14 @@
   <div id="login-section" class="section active">
     <div class="login-container">
       <div class="logo">
-        <div class="logo-icon">☁️📂</div>
-        <h1>Media Vault Cloud</h1>
+        <div class="logo-icon">📂</div>
+        <h1>Media Vault</h1>
       </div>
       <div class="login-form">
         <h2>Enter Access Code</h2>
         <input type="password" id="access-code" placeholder="Enter secret code" />
         <button id="login-btn" class="btn-primary">Enter Vault</button>
         <p id="error-msg" class="error-message"></p>
-        <div class="cloud-status" id="cloud-status">
-          <span class="loading"></span>
-          Checking cloud connection...
-        </div>
       </div>
     </div>
   </div>
@@ -33,15 +29,12 @@
     <header class="app-header">
       <div class="header-content">
         <h1 class="app-title">
-          <span class="app-icon">☁️📂</span>
-          Media Vault Cloud
+          <span class="app-icon">📂</span>
+          Media Vault
         </h1>
         <div class="header-actions">
-          <button class="btn-icon" id="refresh-btn" title="Refresh from Cloud">
+          <button class="btn-icon" id="refresh-btn" title="Refresh">
             <span>🔄</span>
-          </button>
-          <button class="btn-icon" id="settings-btn" title="Settings">
-            <span>⚙️</span>
           </button>
           <button class="btn-icon" id="logout-btn" title="Logout">
             <span>🚪</span>
@@ -171,42 +164,6 @@
       <div class="modal-footer">
         <button class="btn-secondary" id="cancel-rename-btn">Cancel</button>
         <button class="btn-primary" id="confirm-rename">Rename</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Settings Modal -->
-  <div id="settings-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Cloud Settings</h3>
-        <button class="btn-close" id="cancel-settings">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="setting-group">
-          <label>GitHub Username:</label>
-          <input type="text" id="github-username" placeholder="Your GitHub username" />
-        </div>
-        <div class="setting-group">
-          <label>Repository Name:</label>
-          <input type="text" id="github-repo" placeholder="Your repository name" />
-        </div>
-        <div class="setting-group">
-          <label>Branch:</label>
-          <input type="text" id="github-branch" value="main" />
-        </div>
-        <div class="setting-info">
-          <p><strong>How to set up:</strong></p>
-          <ol>
-            <li>Create a GitHub repository</li>
-            <li>Add CSV files in a folder named "csv"</li>
-            <li>Update these settings with your repo details</li>
-          </ol>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" id="cancel-settings-btn">Cancel</button>
-        <button class="btn-primary" id="confirm-settings">Save Settings</button>
       </div>
     </div>
   </div>
