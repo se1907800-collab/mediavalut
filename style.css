@@ -30,6 +30,7 @@ body {
   color: var(--light);
   line-height: 1.6;
   min-height: 100vh;
+  overflow-x: hidden; /* Prevent horizontal scroll on body */
 }
 
 /* Section Management */
@@ -325,18 +326,20 @@ input:focus, select:focus {
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* Grid Layouts */
+/* Grid Layouts - FIXED FOR 5 ITEMS PER ROW ON DESKTOP */
 .folders-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(5, 1fr); /* Fixed 5 columns for desktop */
   gap: 16px;
   margin-bottom: 32px;
+  width: 100%;
 }
 
 .media-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(5, 1fr); /* Fixed 5 columns for desktop */
   gap: 16px;
+  width: 100%;
 }
 
 /* Folder Item */
@@ -349,6 +352,7 @@ input:focus, select:focus {
   cursor: pointer;
   transition: all 0.3s ease;
   user-select: none;
+  min-width: 0; /* Prevent overflow */
 }
 
 .folder-item:hover {
@@ -374,6 +378,9 @@ input:focus, select:focus {
   text-align: center;
   font-weight: 600;
   font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .folder-options {
@@ -417,6 +424,7 @@ input:focus, select:focus {
   transition: all 0.3s ease;
   cursor: pointer;
   user-select: none;
+  min-width: 0; /* Prevent overflow */
 }
 
 .media-item:hover {
@@ -595,34 +603,6 @@ input:focus, select:focus {
   border-top: 1px solid var(--border);
 }
 
-.setting-group {
-  margin-bottom: 16px;
-}
-
-.setting-group label {
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 600;
-  color: var(--gray);
-}
-
-.setting-info {
-  background: rgba(15, 23, 42, 0.5);
-  padding: 16px;
-  border-radius: var(--radius-sm);
-  margin-top: 20px;
-  font-size: 14px;
-}
-
-.setting-info ol {
-  margin-left: 20px;
-  margin-top: 8px;
-}
-
-.setting-info li {
-  margin-bottom: 4px;
-}
-
 /* VIDEO PLAYER STYLES - FIXED FOR MOBILE */
 .video-player-header {
   display: flex;
@@ -758,7 +738,7 @@ input:focus, select:focus {
   cursor: grabbing;
 }
 
-/* MOBILE RESPONSIVE STYLES - FIXED VIDEO PLAYER */
+/* MOBILE RESPONSIVE STYLES - FIXED FOR 2 COLUMNS WITH HORIZONTAL SCROLL */
 @media (max-width: 768px) {
   .modal {
     padding: 10px;
@@ -797,12 +777,27 @@ input:focus, select:focus {
     min-height: 200px; /* Minimum height for very small screens */
   }
   
+  /* FIXED MOBILE GRID - 2 COLUMNS WITH HORIZONTAL SCROLL */
   .folders-grid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
   }
   
   .media-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  }
+  
+  /* Ensure items don't shrink on mobile */
+  .folder-item, .media-item {
+    min-width: 140px;
   }
   
   .org-toolbar {
@@ -827,12 +822,12 @@ input:focus, select:focus {
   
   .folders-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    gap: 10px;
   }
   
   .media-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    gap: 10px;
   }
   
   .folder-header {
@@ -928,4 +923,26 @@ input:focus, select:focus {
   font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
+}
+
+/* Tablet responsive */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .folders-grid {
+    grid-template-columns: repeat(4, 1fr); /* 4 columns for tablet */
+  }
+  
+  .media-grid {
+    grid-template-columns: repeat(4, 1fr); /* 4 columns for tablet */
+  }
+}
+
+/* Large desktop */
+@media (min-width: 1200px) {
+  .folders-grid {
+    grid-template-columns: repeat(5, 1fr); /* 5 columns for large desktop */
+  }
+  
+  .media-grid {
+    grid-template-columns: repeat(5, 1fr); /* 5 columns for large desktop */
+  }
 }
