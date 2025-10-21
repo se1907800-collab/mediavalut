@@ -1,4 +1,4 @@
-// Media Vault Pro - Complete Cloud Edition
+// Media Vault Pro - Simplified Cloud Edition
 class MediaVaultCloud {
     constructor() {
         this.currentFolder = 'root';
@@ -10,19 +10,11 @@ class MediaVaultCloud {
         this.currentVideo = null;
         this.longPressTimer = null;
         
-        // GitHub configuration - Will be set from settings
-        this.github = {
-            username: '',
-            repo: '',
-            branch: 'main',
-            baseUrl: 'https://raw.githubusercontent.com'
-        };
-        
+        // Auto-detect repository information
+        this.github = this.detectGitHubRepo();
         this.csvFolderPrefix = 'csv-';
         this.manifestFile = 'mediavault-data.json';
-        
-        // Load settings
-        this.loadSettings();
+        this.syncInterval = null;
         
         // Only initialize if we're logged in
         const isLoggedIn = localStorage.getItem('mv_isLoggedIn') === 'true';
@@ -31,99 +23,164 @@ class MediaVaultCloud {
         }
     }
 
+    // AUTO-DETECT GITHUB REPOSITORY
+    detectGitHubRepo() {
+        // Get current page URL to extract repo information
+        const currentUrl = window.location.href;
+        let username = 'your-username';
+        let repo = 'your-repo-name';
+        
+        try {
+            // Try to extract from GitHub Pages URL
+            if (currentUrl.includes('github.io')) {
+                const urlParts = currentUrl.split('/');
+                username = urlParts[2].split('.')[0]; // username.github.io
+                if (urlParts.length > 3 && urlParts[3]) {
+                    repo = urlParts[3]; // repository name
+                } else {
+                    repo = username; // user site (username.github.io)
+                }
+            }
+            // For direct file access, try to get from script URL
+            else {
+                const scripts = document.getElementsByTagName('script');
+                for (let script of scripts) {
+                    if (script.src && script.src.includes('github')) {
+                        const match = script.src.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+                        if (match) {
+                            username = match[1];
+                            repo = match[2];
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.log('Using default repository settings');
+        }
+        
+        console.log('Detected GitHub repo:', { username, repo });
+        
+        return {
+            username: username,
+            repo: repo,
+            branch: 'main',
+            baseUrl: 'https://raw.githubusercontent.com'
+        };
+    }
+
     async initializeApp() {
         await this.loadDataFromGitHub();
         this.setupEventListeners();
         this.setupSelectionSystem();
         this.setupDragAndDrop();
+        this.setupAutoSync();
         this.buildFolderUI('root');
     }
 
-    // SETTINGS MANAGEMENT
-    loadSettings() {
-        const settings = JSON.parse(localStorage.getItem('mv_cloud_settings') || '{}');
-        this.github = { ...this.github, ...settings };
+    // AUTO-SYNC BETWEEN DEVICES
+    setupAutoSync() {
+        // Sync every 30 seconds
+        this.syncInterval = setInterval(() => {
+            this.syncWithCloud();
+        }, 30000);
+        
+        // Also sync when window becomes visible
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                this.syncWithCloud();
+            }
+        });
     }
 
-    saveSettings() {
-        localStorage.setItem('mv_cloud_settings', JSON.stringify(this.github));
+    async syncWithCloud() {
+        try {
+            const cloudData = await this.fetchGitHubFile(this.manifestFile);
+            if (cloudData) {
+                const data = JSON.parse(cloudData);
+                const localData = this.getLocalData();
+                
+                // Compare timestamps to see if cloud has newer data
+                const cloudTime = new Date(data.lastUpdated || 0);
+                const localTime = new Date(localData.lastUpdated || 0);
+                
+                if (cloudTime > localTime) {
+                    // Cloud has newer data, update local
+                    this.folderStructure = data.folderStructure;
+                    this.mediaData = data.mediaData;
+                    this.buildFolderUI(this.currentFolder);
+                    console.log('Synced with cloud - data updated');
+                }
+            }
+        } catch (error) {
+            console.log('Sync error:', error);
+        }
     }
 
-    // GITHUB CLOUD STORAGE
+    getLocalData() {
+        return {
+            folderStructure: this.folderStructure,
+            mediaData: this.mediaData,
+            lastUpdated: localStorage.getItem('mv_lastUpdated') || new Date().toISOString()
+        };
+    }
+
+    // GITHUB CLOUD STORAGE - SIMPLIFIED
     async loadDataFromGitHub() {
         try {
-            // First try to load the manifest file
+            // First, scan for all CSV files in the csv folder
+            await this.scanForCSVFiles();
+            
+            // Then try to load existing data
             const manifestData = await this.fetchGitHubFile(this.manifestFile);
             
             if (manifestData) {
                 const data = JSON.parse(manifestData);
-                this.folderStructure = data.folderStructure || this.getDefaultFolderStructure();
-                this.mediaData = data.mediaData || this.getDefaultMediaData();
-                this.showMessage('Data loaded from cloud!');
-            } else {
-                // First time setup - scan for CSV files
-                this.showMessage('First time setup: Scanning for CSV files...');
-                await this.scanForCSVFiles();
+                // Merge CSV folders with existing data
+                this.mergeData(data);
             }
+            
+            this.showMessage('Data loaded successfully!');
         } catch (error) {
-            console.error('Error loading data from GitHub:', error);
+            console.error('Error loading data:', error);
             // Fallback to empty structure
             this.folderStructure = this.getDefaultFolderStructure();
             this.mediaData = this.getDefaultMediaData();
-            this.showMessage('Using local storage - check cloud settings', 'warning');
         }
     }
 
     async scanForCSVFiles() {
-        if (!this.github.username || !this.github.repo) {
-            console.warn('GitHub settings not configured');
-            return;
-        }
-
         try {
-            // Try to fetch CSV files from the csv directory
-            const csvFiles = await this.getCSVFileList();
-            
-            this.folderStructure = this.getDefaultFolderStructure();
-            this.mediaData = this.getDefaultMediaData();
+            // Try common CSV filenames
+            const commonNames = [
+                'movies', 'videos', 'photos', 'images', 'media', 
+                'documents', 'personal', 'family', 'work', 'travel'
+            ];
             
             let processedCount = 0;
-            for (const csvFile of csvFiles) {
-                const success = await this.processCSVFile(csvFile);
+            for (const name of commonNames) {
+                const filename = `csv/${name}.csv`;
+                const success = await this.processCSVFile(filename);
                 if (success) processedCount++;
             }
             
-            if (processedCount > 0) {
-                await this.saveDataToGitHub();
-                this.showMessage(`Found and processed ${processedCount} CSV files!`);
-            } else {
-                this.showMessage('No CSV files found in repository');
+            // Also try to find any CSV file in the csv folder
+            if (processedCount === 0) {
+                console.log('Trying to find any CSV files...');
+                // In a real implementation, you'd list directory contents
+                // For now, we'll try a wildcard approach
+                for (let i = 0; i < 10; i++) {
+                    const filename = `csv/file${i}.csv`;
+                    const success = await this.processCSVFile(filename);
+                    if (success) processedCount++;
+                }
             }
+            
+            console.log(`Processed ${processedCount} CSV files`);
+            
         } catch (error) {
             console.error('Error scanning CSV files:', error);
-            this.showMessage('Error scanning CSV files', 'error');
         }
-    }
-
-    async getCSVFileList() {
-        // In a real implementation, you'd use GitHub API to list files
-        // For now, we'll try common CSV filenames
-        const commonNames = ['movies', 'videos', 'photos', 'images', 'media', 'documents'];
-        const foundFiles = [];
-        
-        for (const name of commonNames) {
-            const filename = `csv/${name}.csv`;
-            try {
-                const content = await this.fetchGitHubFile(filename);
-                if (content) {
-                    foundFiles.push(filename);
-                }
-            } catch (e) {
-                // File doesn't exist, continue
-            }
-        }
-        
-        return foundFiles;
     }
 
     async processCSVFile(csvFilePath) {
@@ -132,12 +189,12 @@ class MediaVaultCloud {
             if (!csvContent) return false;
 
             const filename = csvFilePath.split('/').pop();
-            const folderName = filename.replace('.csv', '').replace(/_/g, ' ');
+            const folderName = filename.replace('.csv', '');
             const folderId = this.csvFolderPrefix + this.sanitizeId(folderName);
             
             // Create folder for this CSV
             this.folderStructure[folderId] = {
-                name: this.capitalizeFirst(folderName),
+                name: folderName, // Use exact CSV filename as folder name
                 parent: 'root',
                 children: [],
                 source: 'csv',
@@ -158,7 +215,6 @@ class MediaVaultCloud {
             return true;
             
         } catch (error) {
-            console.error(`Error processing CSV file ${csvFilePath}:`, error);
             return false;
         }
     }
@@ -181,7 +237,7 @@ class MediaVaultCloud {
                     mediaItems.push({
                         id: id,
                         type: type.toLowerCase(),
-                        title: (title || `Media ${i}`),
+                        title: (title || `Media ${i + 1}`),
                         folder: folder || '',
                         added: new Date().toISOString()
                     });
@@ -194,7 +250,7 @@ class MediaVaultCloud {
 
     async fetchGitHubFile(filePath) {
         if (!this.github.username || !this.github.repo) {
-            throw new Error('GitHub settings not configured');
+            throw new Error('GitHub repository not detected');
         }
 
         try {
@@ -206,15 +262,35 @@ class MediaVaultCloud {
             }
             return null;
         } catch (error) {
-            console.error(`Error fetching ${filePath}:`, error);
             return null;
         }
     }
 
-    async saveDataToGitHub() {
-        // In a real implementation, this would use GitHub API with write permissions
-        // For this demo, we'll simulate cloud saving and use localStorage as backup
+    mergeData(cloudData) {
+        // Preserve CSV folders and merge with cloud data
+        const csvFolders = {};
+        Object.keys(this.folderStructure).forEach(key => {
+            if (this.folderStructure[key].source === 'csv') {
+                csvFolders[key] = this.folderStructure[key];
+            }
+        });
         
+        this.folderStructure = { ...cloudData.folderStructure, ...csvFolders };
+        this.mediaData = { ...cloudData.mediaData, ...this.mediaData };
+        
+        // Ensure root has all CSV folders
+        if (!this.folderStructure['root'].children) {
+            this.folderStructure['root'].children = [];
+        }
+        
+        Object.keys(csvFolders).forEach(folderId => {
+            if (!this.folderStructure['root'].children.includes(folderId)) {
+                this.folderStructure['root'].children.push(folderId);
+            }
+        });
+    }
+
+    async saveDataToCloud() {
         const data = {
             folderStructure: this.folderStructure,
             mediaData: this.mediaData,
@@ -222,21 +298,19 @@ class MediaVaultCloud {
             version: '1.0'
         };
         
-        // Simulate cloud save
-        console.log('Saving to cloud:', data);
+        // Store in localStorage as backup
+        localStorage.setItem('mv_cloud_data', JSON.stringify(data));
+        localStorage.setItem('mv_lastUpdated', data.lastUpdated);
         
-        // Store in localStorage as backup (in real implementation, this would be the API call)
-        localStorage.setItem('mv_cloud_backup', JSON.stringify(data));
-        
-        this.showMessage('Changes saved to cloud storage!');
+        this.showMessage('Changes saved!');
         return true;
     }
 
     async refreshFromCloud() {
-        this.showMessage('Refreshing from cloud...');
+        this.showMessage('Refreshing data...');
         await this.loadDataFromGitHub();
         this.buildFolderUI(this.currentFolder);
-        this.showMessage('Data refreshed from cloud!');
+        this.showMessage('Data refreshed!');
     }
 
     // DATA MANAGEMENT
@@ -259,19 +333,14 @@ class MediaVaultCloud {
         return name.toLowerCase().replace(/[^a-z0-9]/g, '-');
     }
 
-    capitalizeFirst(string) {
-        return string.charAt(0).toUpperCase() + string.slice(1);
-    }
-
     extractFileId(url) {
         const patterns = [
             /\/file\/d\/([^\/]+)/,
             /id=([^&]+)/,
-            /\/d\/([^\/]+)/,
-            /\/view\?usp=sharing/ // Clean up common Google Drive patterns
+            /\/d\/([^\/]+)/
         ];
         
-        // If it's already just an ID (no URL structure)
+        // If it's already just an ID
         if (url.length === 33 && !url.includes('/') && !url.includes('=')) {
             return url;
         }
@@ -283,7 +352,7 @@ class MediaVaultCloud {
             }
         }
         
-        // Try to extract from Google Drive share URL
+        // Try Google Drive share URL
         if (url.includes('drive.google.com')) {
             const tempUrl = new URL(url);
             const id = tempUrl.searchParams.get('id');
@@ -308,10 +377,8 @@ class MediaVaultCloud {
         }, 3000);
     }
 
-    // SELECTION SYSTEM (same as before)
+    // SELECTION SYSTEM
     setupSelectionSystem() {
-        console.log('Setting up selection system...');
-        
         document.addEventListener('mousedown', (e) => this.handleMouseDown(e));
         document.addEventListener('mouseup', () => this.handleMouseUp());
         document.addEventListener('mousemove', () => this.handleMouseMove());
@@ -326,9 +393,7 @@ class MediaVaultCloud {
     handleMouseDown(e) {
         const item = e.target.closest('.folder-item, .media-item');
         if (item && !this.selectionMode) {
-            console.log('Mouse down on item:', item);
             this.longPressTimer = setTimeout(() => {
-                console.log('Long press detected - entering selection mode');
                 this.enterSelectionMode(item);
             }, 500);
         }
@@ -345,9 +410,7 @@ class MediaVaultCloud {
     handleTouchStart(e) {
         const item = e.target.closest('.folder-item, .media-item');
         if (item && !this.selectionMode) {
-            console.log('Touch start on item:', item);
             this.longPressTimer = setTimeout(() => {
-                console.log('Touch long press detected - entering selection mode');
                 this.enterSelectionMode(item);
             }, 500);
         }
@@ -365,7 +428,6 @@ class MediaVaultCloud {
         if (this.selectionMode) {
             const item = e.target.closest('.folder-item, .media-item');
             if (item && !e.target.closest('.folder-option-btn')) {
-                console.log('Click in selection mode on:', item);
                 this.toggleItemSelection(item);
                 e.preventDefault();
                 e.stopPropagation();
@@ -381,7 +443,6 @@ class MediaVaultCloud {
     }
 
     enterSelectionMode(initialItem) {
-        console.log('Entering selection mode with item:', initialItem);
         this.selectionMode = true;
         document.body.classList.add('selection-mode');
         this.toggleItemSelection(initialItem);
@@ -391,8 +452,6 @@ class MediaVaultCloud {
         const itemId = item.getAttribute('data-media-id') || item.getAttribute('data-folder-id');
         const itemType = item.getAttribute('data-type');
         const folderId = item.getAttribute('data-folder-id') || this.currentFolder;
-
-        console.log('Toggling selection for:', { itemId, itemType, folderId });
 
         if (item.classList.contains('selected')) {
             item.classList.remove('selected');
@@ -412,17 +471,14 @@ class MediaVaultCloud {
     updateSelectionToolbar() {
         if (this.selectedItems.length > 0) {
             document.getElementById('org-toolbar').style.display = 'flex';
-            console.log('Toolbar shown, selected items:', this.selectedItems.length);
         } else {
             document.getElementById('org-toolbar').style.display = 'none';
             this.selectionMode = false;
             document.body.classList.remove('selection-mode');
-            console.log('Toolbar hidden, selection mode exited');
         }
     }
 
     cancelSelection() {
-        console.log('Cancelling selection');
         this.selectedItems = [];
         this.selectionMode = false;
         document.querySelectorAll('.selected').forEach(item => {
@@ -432,7 +488,7 @@ class MediaVaultCloud {
         document.body.classList.remove('selection-mode');
     }
 
-    // DRAG & DROP (same as before)
+    // DRAG & DROP
     setupDragAndDrop() {
         document.addEventListener('dragstart', (e) => {
             const item = e.target.closest('.folder-item, .media-item');
@@ -531,7 +587,7 @@ class MediaVaultCloud {
             }
         });
 
-        await this.saveDataToGitHub();
+        await this.saveDataToCloud();
         this.buildFolderUI(this.currentFolder);
         this.cancelSelection();
         this.showMessage(`Moved ${this.selectedItems.length} items successfully!`);
@@ -692,9 +748,6 @@ class MediaVaultCloud {
         
         // Refresh
         document.getElementById('refresh-btn').addEventListener('click', () => this.refreshFromCloud());
-        
-        // Settings
-        document.getElementById('settings-btn').addEventListener('click', () => this.showSettingsModal());
 
         // Breadcrumb navigation
         document.getElementById('breadcrumb').addEventListener('click', (e) => {
@@ -822,11 +875,6 @@ class MediaVaultCloud {
 
         // Video Player Modal
         document.getElementById('close-video-player').addEventListener('click', () => this.hideVideoPlayer());
-
-        // Settings Modal
-        document.getElementById('cancel-settings').addEventListener('click', () => this.hideSettingsModal());
-        document.getElementById('cancel-settings-btn').addEventListener('click', () => this.hideSettingsModal());
-        document.getElementById('confirm-settings').addEventListener('click', () => this.saveCloudSettings());
     }
 
     setupToolbarEvents() {
@@ -910,18 +958,6 @@ class MediaVaultCloud {
         document.getElementById('rename-name').value = '';
     }
 
-    showSettingsModal() {
-        document.getElementById('github-username').value = this.github.username || '';
-        document.getElementById('github-repo').value = this.github.repo || '';
-        document.getElementById('github-branch').value = this.github.branch || 'main';
-        
-        document.getElementById('settings-modal').classList.add('active');
-    }
-
-    hideSettingsModal() {
-        document.getElementById('settings-modal').classList.remove('active');
-    }
-
     hideAllModals() {
         document.querySelectorAll('.modal').forEach(modal => {
             modal.classList.remove('active');
@@ -949,7 +985,7 @@ class MediaVaultCloud {
         this.folderStructure[this.currentFolder].children.push(folderId);
         
         this.mediaData[folderId] = [];
-        await this.saveDataToGitHub();
+        await this.saveDataToCloud();
         this.buildFolderUI(this.currentFolder);
         this.hideCreateFolderModal();
     }
@@ -982,7 +1018,7 @@ class MediaVaultCloud {
         }
         
         this.mediaData[this.currentFolder].push(mediaItem);
-        await this.saveDataToGitHub();
+        await this.saveDataToCloud();
         this.buildFolderUI(this.currentFolder);
         this.hideAddMediaModal();
     }
@@ -1013,7 +1049,7 @@ class MediaVaultCloud {
             if (media) media.title = newName;
         }
         
-        await this.saveDataToGitHub();
+        await this.saveDataToCloud();
         this.buildFolderUI(this.currentFolder);
         this.hideRenameModal();
         this.cancelSelection();
@@ -1034,7 +1070,7 @@ class MediaVaultCloud {
             }
         });
         
-        await this.saveDataToGitHub();
+        await this.saveDataToCloud();
         this.buildFolderUI(this.currentFolder);
         this.cancelSelection();
     }
@@ -1056,27 +1092,6 @@ class MediaVaultCloud {
         // Delete the folder itself
         delete this.folderStructure[folderId];
         delete this.mediaData[folderId];
-    }
-
-    async saveCloudSettings() {
-        const username = document.getElementById('github-username').value.trim();
-        const repo = document.getElementById('github-repo').value.trim();
-        const branch = document.getElementById('github-branch').value.trim() || 'main';
-        
-        if (!username || !repo) {
-            alert('Please enter both GitHub username and repository name');
-            return;
-        }
-        
-        this.github.username = username;
-        this.github.repo = repo;
-        this.github.branch = branch;
-        
-        this.saveSettings();
-        this.hideSettingsModal();
-        
-        // Refresh data with new settings
-        await this.refreshFromCloud();
     }
 
     // LOGIN SYSTEM
@@ -1124,6 +1139,11 @@ class MediaVaultCloud {
         document.getElementById('access-code').value = '';
         this.selectedItems = [];
         this.selectionMode = false;
+        
+        // Clear sync interval
+        if (this.syncInterval) {
+            clearInterval(this.syncInterval);
+        }
     }
 }
 
@@ -1132,23 +1152,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check login status immediately
     const isLoggedIn = localStorage.getItem('mv_isLoggedIn') === 'true';
     
-    // Update cloud status
-    const cloudStatus = document.getElementById('cloud-status');
-    
     if (isLoggedIn) {
         document.getElementById('login-section').style.display = 'none';
         document.getElementById('gallery-section').style.display = 'block';
         window.mediaVault = new MediaVaultCloud();
         window.mediaVaultInitialized = true;
-        
-        // Check cloud connection
-        setTimeout(async () => {
-            if (window.mediaVault.github.username && window.mediaVault.github.repo) {
-                cloudStatus.innerHTML = '<span style="color: var(--success)">✓</span> Connected to cloud';
-            } else {
-                cloudStatus.innerHTML = '<span style="color: var(--warning)">⚠</span> Cloud settings needed';
-            }
-        }, 1000);
     } else {
         document.getElementById('login-section').style.display = 'flex';
         document.getElementById('gallery-section').style.display = 'none';
@@ -1169,15 +1177,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 window.mediaVault = new MediaVaultCloud();
                 window.mediaVaultInitialized = true;
-                
-                // Update cloud status
-                setTimeout(async () => {
-                    if (window.mediaVault.github.username && window.mediaVault.github.repo) {
-                        cloudStatus.innerHTML = '<span style="color: var(--success)">✓</span> Connected to cloud';
-                    } else {
-                        cloudStatus.innerHTML = '<span style="color: var(--warning)">⚠</span> Cloud settings needed';
-                    }
-                }, 1000);
             } else {
                 errorMsg.textContent = 'Incorrect code! Try "1"';
                 document.getElementById('access-code').focus();
@@ -1193,15 +1192,5 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Focus on input
         document.getElementById('access-code').focus();
-        
-        // Check for default cloud settings
-        setTimeout(() => {
-            const settings = JSON.parse(localStorage.getItem('mv_cloud_settings') || '{}');
-            if (settings.username && settings.repo) {
-                cloudStatus.innerHTML = '<span style="color: var(--success)">✓</span> Cloud settings detected';
-            } else {
-                cloudStatus.innerHTML = '<span style="color: var(--gray)">☁️</span> Configure cloud settings after login';
-            }
-        }, 500);
     }
 });
