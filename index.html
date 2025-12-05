@@ -3,22 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Media Vault Pro</title>
+  <title>Media Vault Pro - Cloud Edition</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
   <!-- Login Section -->
   <div id="login-section" class="section active">
     <div class="login-container">
       <div class="logo">
-        <div class="logo-icon">📂</div>
-        <h1>Media Vault</h1>
+        <div class="logo-icon">☁️📂</div>
+        <h1>Media Vault Cloud</h1>
       </div>
       <div class="login-form">
         <h2>Enter Access Code</h2>
         <input type="password" id="access-code" placeholder="Enter secret code" />
         <button id="login-btn" class="btn-primary">Enter Vault</button>
         <p id="error-msg" class="error-message"></p>
+        <div class="cloud-status" id="cloud-status">
+          <span class="loading"></span>
+          Checking cloud connection...
+        </div>
       </div>
     </div>
   </div>
@@ -29,12 +37,15 @@
     <header class="app-header">
       <div class="header-content">
         <h1 class="app-title">
-          <span class="app-icon">📂</span>
-          Media Vault
+          <span class="app-icon">☁️📂</span>
+          Media Vault Cloud
         </h1>
         <div class="header-actions">
           <button class="btn-icon" id="refresh-btn" title="Refresh">
             <span>🔄</span>
+          </button>
+          <button class="btn-icon" id="settings-btn" title="Settings">
+            <span>⚙️</span>
           </button>
           <button class="btn-icon" id="logout-btn" title="Logout">
             <span>🚪</span>
@@ -43,11 +54,22 @@
       </div>
     </header>
 
+    <!-- Sync Status Bar -->
+    <div id="sync-status-bar" class="sync-status-bar">
+      <span id="sync-icon">🔄</span>
+      <span id="sync-text">Syncing...</span>
+    </div>
+
     <!-- Breadcrumb -->
     <nav class="breadcrumb" id="breadcrumb">
-      <div class="breadcrumb-item active" data-folder="root">
-        <span>🏠</span>
-        Home
+      <button class="btn-icon" id="back-btn" style="display: none;">
+        <span>←</span>
+      </button>
+      <div class="breadcrumb-items" id="breadcrumb-items">
+        <div class="breadcrumb-item active" data-folder="root">
+          <span>🏠</span>
+          Home
+        </div>
       </div>
     </nav>
 
@@ -77,6 +99,25 @@
         Cancel
       </button>
     </div>
+
+    <!-- Mobile Floating Action Button -->
+    <div class="mobile-fab" id="mobile-fab">
+      <button class="fab-main">+</button>
+      <div class="fab-menu">
+        <button data-action="create-folder">
+          <span>📁</span>
+          New Folder
+        </button>
+        <button data-action="add-link">
+          <span>➕</span>
+          Add Media
+        </button>
+        <button data-action="select-mode">
+          <span>☑️</span>
+          Select Items
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Video Player Modal -->
@@ -101,12 +142,36 @@
         <button class="btn-close" id="cancel-add-media">×</button>
       </div>
       <div class="modal-body">
-        <input type="text" id="media-link" placeholder="Paste Google Drive shared link" />
-        <select id="media-type">
-          <option value="image">Image</option>
-          <option value="video">Video</option>
-        </select>
-        <input type="text" id="media-title" placeholder="Media title (optional)" />
+        <!-- Mobile Tabs -->
+        <div class="mobile-tabs" id="mobile-tabs">
+          <button class="mobile-tab active" data-tab="single">Single</button>
+          <button class="mobile-tab" data-tab="batch">Multiple</button>
+        </div>
+        
+        <!-- Single Media Tab -->
+        <div class="tab-content active" id="single-tab">
+          <input type="text" id="media-link" placeholder="Paste Google Drive link" />
+          <select id="media-type">
+            <option value="image">Image</option>
+            <option value="video" selected>Video</option>
+          </select>
+          <input type="text" id="media-title" placeholder="Media title (optional)" />
+        </div>
+        
+        <!-- Batch Media Tab -->
+        <div class="tab-content" id="batch-tab">
+          <textarea id="batch-links" 
+                    placeholder="Paste multiple Google Drive links (one per line)
+Example:
+https://drive.google.com/file/d/ABC123/view
+https://drive.google.com/file/d/DEF456/view"></textarea>
+          <input type="text" id="batch-title" placeholder="Common title prefix (optional)" />
+          <select id="batch-type">
+            <option value="video" selected>Video</option>
+            <option value="image">Image</option>
+          </select>
+          <p class="hint-text">You can add up to 10 links at once</p>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn-secondary" id="cancel-add-media-btn">Cancel</button>
@@ -168,6 +233,51 @@
     </div>
   </div>
 
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Cloud Settings</h3>
+        <button class="btn-close" id="cancel-settings">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="setting-group">
+          <label>Firebase Status:</label>
+          <div id="firebase-status" class="firebase-status">
+            <span class="status-icon">🔄</span>
+            <span class="status-text">Checking connection...</span>
+          </div>
+        </div>
+        <div class="setting-info">
+          <p><strong>About Firebase Sync:</strong></p>
+          <ul>
+            <li>All changes sync instantly across all your devices</li>
+            <li>No login required - uses anonymous authentication</li>
+            <li>Real-time updates - see changes from other devices immediately</li>
+            <li>Your data is stored securely in Google Firebase</li>
+          </ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="cancel-settings-btn">Cancel</button>
+        <button class="btn-primary" id="confirm-settings">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase configuration -->
+  <script>
+    // Your Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyDJ1sbgsMVcPLsG96Ob_Zhco3wlZ0DMqk0",
+      authDomain: "mediavault-fb492.firebaseapp.com",
+      projectId: "mediavault-fb492",
+      storageBucket: "mediavault-fb492.firebasestorage.app",
+      messagingSenderId: "192876947768",
+      appId: "1:192876947768:web:20a322eceed35b07ecb9cd"
+    };
+  </script>
+  
   <script src="script.js"></script>
 </body>
 </html>
