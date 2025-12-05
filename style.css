@@ -30,6 +30,7 @@ body {
   color: var(--light);
   line-height: 1.6;
   min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Section Management */
@@ -40,6 +41,38 @@ body {
 
 .section.active {
   display: block;
+}
+
+/* Sync Status Bar */
+.sync-status-bar {
+  background: rgba(30, 41, 59, 0.9);
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  backdrop-filter: blur(10px);
+}
+
+.sync-status-bar.synced {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--success);
+}
+
+.sync-status-bar.syncing {
+  background: rgba(99, 102, 241, 0.2);
+  color: var(--primary);
+}
+
+.sync-status-bar.error {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--danger);
+}
+
+.sync-status-bar.offline {
+  background: rgba(148, 163, 184, 0.2);
+  color: var(--gray);
 }
 
 /* Login Section */
@@ -89,8 +122,20 @@ body {
   font-weight: 600;
 }
 
+.cloud-status {
+  margin-top: 15px;
+  padding: 10px;
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 /* Input Styles */
-input, select {
+input, select, textarea {
   width: 100%;
   padding: 12px 16px;
   margin: 8px 0;
@@ -102,10 +147,58 @@ input, select {
   transition: all 0.3s ease;
 }
 
-input:focus, select:focus {
+textarea {
+  min-height: 120px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* Mobile Tabs */
+.mobile-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.mobile-tab {
+  flex: 1;
+  padding: 10px;
+  background: none;
+  border: none;
+  color: var(--gray);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.mobile-tab.active {
+  background: var(--primary);
+  color: white;
+  font-weight: 600;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.hint-text {
+  font-size: 12px;
+  color: var(--gray);
+  margin-top: 8px;
+  opacity: 0.8;
 }
 
 /* Button Styles */
@@ -210,6 +303,14 @@ input:focus, select:focus {
   background: rgba(15, 23, 42, 0.5);
   border-bottom: 1px solid var(--border);
   overflow-x: auto;
+  gap: 10px;
+}
+
+.breadcrumb-items {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  overflow-x: auto;
 }
 
 .breadcrumb-item {
@@ -313,20 +414,18 @@ input:focus, select:focus {
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* Grid Layouts - FIXED FOR 5 ITEMS PER ROW ON DESKTOP */
+/* Grid Layouts */
 .folders-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 16px;
   margin-bottom: 32px;
-  width: 100%;
 }
 
 .media-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 16px;
-  width: 100%;
 }
 
 /* Folder Item */
@@ -339,7 +438,7 @@ input:focus, select:focus {
   cursor: pointer;
   transition: all 0.3s ease;
   user-select: none;
-  min-width: 0;
+  touch-action: manipulation;
 }
 
 .folder-item:hover {
@@ -365,9 +464,6 @@ input:focus, select:focus {
   text-align: center;
   font-weight: 600;
   font-size: 14px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .folder-options {
@@ -411,7 +507,7 @@ input:focus, select:focus {
   transition: all 0.3s ease;
   cursor: pointer;
   user-select: none;
-  min-width: 0;
+  touch-action: manipulation;
 }
 
 .media-item:hover {
@@ -509,6 +605,93 @@ input:focus, select:focus {
   background: var(--secondary);
 }
 
+/* Mobile Floating Action Button */
+.mobile-fab {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  z-index: 1000;
+  display: none;
+}
+
+.fab-main {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  transition: all 0.3s ease;
+}
+
+.fab-main:hover, .fab-main.active {
+  transform: scale(1.1);
+  background: var(--primary-dark);
+}
+
+.fab-menu {
+  position: absolute;
+  bottom: 70px;
+  right: 0;
+  background: var(--dark);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 180px;
+  box-shadow: var(--shadow-lg);
+}
+
+.fab-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: none;
+  border: none;
+  color: var(--light);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  width: 100%;
+}
+
+.fab-menu button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Selection Mode Checkbox for Mobile */
+.selection-mode .folder-item::before,
+.selection-mode .media-item::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--primary);
+  border-radius: 4px;
+  background: transparent;
+  z-index: 1;
+}
+
+.selection-mode .folder-item.selected::before,
+.selection-mode .media-item.selected::before {
+  background: var(--primary);
+  content: "✓";
+  color: white;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
 /* Modal Styles */
 .modal {
   display: none;
@@ -590,7 +773,48 @@ input:focus, select:focus {
   border-top: 1px solid var(--border);
 }
 
-/* VIDEO PLAYER STYLES */
+.setting-group {
+  margin-bottom: 16px;
+}
+
+.setting-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: var(--gray);
+}
+
+.firebase-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: var(--radius-sm);
+}
+
+.status-icon {
+  font-size: 20px;
+}
+
+.setting-info {
+  background: rgba(15, 23, 42, 0.5);
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  margin-top: 20px;
+  font-size: 14px;
+}
+
+.setting-info ul {
+  margin-left: 20px;
+  margin-top: 8px;
+}
+
+.setting-info li {
+  margin-bottom: 4px;
+}
+
+/* VIDEO PLAYER STYLES - FIXED FOR MOBILE */
 .video-player-header {
   display: flex;
   justify-content: space-between;
@@ -616,7 +840,7 @@ input:focus, select:focus {
   position: relative;
   width: 100%;
   height: 0;
-  padding-bottom: 56.25%;
+  padding-bottom: 56.25%; /* 16:9 aspect ratio */
   background: #000;
   flex: 1;
   min-height: 0;
@@ -642,6 +866,26 @@ input:focus, select:focus {
   font-size: 48px;
   margin-bottom: 16px;
   opacity: 0.5;
+}
+
+.empty-state-hint {
+  font-size: 12px;
+  color: var(--gray);
+  margin-top: 8px;
+  opacity: 0.7;
+}
+
+.csv-folder-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: var(--success);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 /* Error Message */
@@ -714,17 +958,32 @@ input:focus, select:focus {
   }
 }
 
+/* Make items draggable */
+.folder-item[draggable="true"],
+.media-item[draggable="true"] {
+  cursor: grab;
+}
+
+.folder-item[draggable="true"]:active,
+.media-item[draggable="true"]:active {
+  cursor: grabbing;
+}
+
 /* MOBILE RESPONSIVE STYLES */
 @media (max-width: 768px) {
+  .mobile-fab {
+    display: block;
+  }
+  
   .modal {
     padding: 10px;
     align-items: flex-start;
-    padding-top: 20px;
+    padding-top: 40px;
   }
   
   .modal-content {
     margin: 0;
-    max-height: calc(100vh - 40px);
+    max-height: calc(100vh - 80px);
   }
   
   .video-player-content {
@@ -748,27 +1007,19 @@ input:focus, select:focus {
   }
   
   .video-container {
-    padding-bottom: 56.25%;
+    padding-bottom: 56.25%; /* Maintain 16:9 ratio */
     flex: 1;
-    min-height: 200px;
+    min-height: 200px; /* Minimum height for very small screens */
   }
   
-  /* MOBILE GRID - 2 COLUMNS */
   .folders-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 12px;
-    padding-bottom: 10px;
-    margin-bottom: 20px;
   }
   
   .media-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 12px;
-    padding-bottom: 10px;
-  }
-  
-  .folder-item, .media-item {
-    min-width: 140px;
   }
   
   .org-toolbar {
@@ -780,25 +1031,57 @@ input:focus, select:focus {
   }
   
   .btn-toolbar {
-    padding: 8px 10px;
+    padding: 10px;
     font-size: 11px;
+    flex: 1;
+    justify-content: center;
+  }
+  
+  .folder-header {
+    padding: 12px;
+  }
+  
+  .folder-header h2 {
+    font-size: 18px;
+  }
+  
+  .add-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+  
+  .breadcrumb {
+    padding: 12px;
+  }
+  
+  .main-content {
+    padding: 12px;
+  }
+  
+  .folder-item, .media-item {
+    padding: 12px;
+  }
+  
+  .media-thumb {
+    height: 100px;
+  }
+  
+  /* Touch-friendly buttons */
+  .btn-primary, .btn-secondary {
+    min-height: 48px;
+    padding: 14px 20px;
   }
 }
 
 /* Extra small mobile devices */
 @media (max-width: 480px) {
-  .main-content {
-    padding: 10px;
-  }
-  
   .folders-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
   }
   
   .media-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
   }
   
   .folder-header {
@@ -817,16 +1100,31 @@ input:focus, select:focus {
     width: 100%;
     height: 100%;
   }
-}
-
-/* Tablet responsive */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .folders-grid {
-    grid-template-columns: repeat(4, 1fr);
+  
+  /* Fix for mobile browser address bar */
+  @media (max-height: 600px) {
+    .video-container {
+      padding-bottom: 50%; /* Slightly adjust ratio for very short screens */
+    }
   }
   
-  .media-grid {
-    grid-template-columns: repeat(4, 1fr);
+  /* Landscape mode on mobile */
+  @media (max-width: 768px) and (orientation: landscape) {
+    .video-player-content {
+      max-height: 100vh;
+    }
+    
+    .video-container {
+      padding-bottom: 75%; /* Adjust ratio for landscape */
+    }
+    
+    .video-player-header {
+      padding: 8px 15px;
+    }
+    
+    .video-player-header h3 {
+      font-size: 14px;
+    }
   }
 }
 
@@ -846,22 +1144,29 @@ input:focus, select:focus {
   to { transform: rotate(360deg); }
 }
 
-.empty-state-hint {
-    font-size: 12px;
-    color: var(--gray);
-    margin-top: 8px;
-    opacity: 0.7;
+/* Touch device improvements */
+@media (hover: none) and (pointer: coarse) {
+  .folder-item:hover,
+  .media-item:hover {
+    transform: none;
+  }
+  
+  .btn-primary:hover,
+  .btn-secondary:hover,
+  .btn-toolbar:hover {
+    transform: none;
+  }
+  
+  .add-btn:hover {
+    transform: none;
+  }
 }
 
-.csv-folder-badge {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  background: var(--success);
-  color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
+/* Selection checkbox for touch devices */
+@media (hover: none) {
+  .selection-mode .folder-item.selected,
+  .selection-mode .media-item.selected {
+    border-color: var(--primary) !important;
+    background: rgba(99, 102, 241, 0.2) !important;
+  }
 }
